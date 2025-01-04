@@ -47,6 +47,10 @@ export class ArticlesService {
     return this.articleRepository.findOne({ where: { id } });
   }
 
+  async findByUrl(url: string) {
+    return this.articleRepository.findOne({ where: { url } });
+  }
+
   async create(article: Partial<Article>) {
     const newArticle = this.articleRepository.create(article);
     return this.articleRepository.save(newArticle);

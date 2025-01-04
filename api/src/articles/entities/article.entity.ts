@@ -25,4 +25,7 @@ export class Article {
 
   @Column({ nullable: true })
   category: string;
+
+  @Column('simple-json', { nullable: true })
+  categoriesJson: string[];
 }
