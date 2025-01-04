@@ -102,6 +102,7 @@ The application will be available at:
 Detailed architecture diagrams can be found in the `documentation/diagrams` directory:
 - [System Architecture](documentation/diagrams/system-architecture.md): High-level overview of system components and their interactions
 - [Component Diagram](documentation/diagrams/component-diagram.md): Detailed breakdown of internal components and their relationships
+- [Database Schema](documentation/diagrams/database-schema.md): Complete database structure and relationships
 
 ### Frontend Architecture
 - **App Router**: Utilizes Next.js 14's app router for page routing
