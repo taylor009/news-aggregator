@@ -225,3 +225,100 @@ docker-compose restart ui
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Testing
+
+The project includes comprehensive test coverage for both frontend and backend components.
+
+### Backend Testing
+
+The backend uses Jest and Supertest for testing. Tests are organized into:
+- Unit tests (`*.spec.ts`)
+- E2E tests (`test/*.e2e-spec.ts`)
+
+Run backend tests:
+```bash
+cd api
+
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:cov
+
+# Run E2E tests
+npm run test:e2e
+```
+
+Coverage requirements:
+- Minimum 80% coverage for all metrics
+- Tests required for all new features/changes
+
+### Frontend Testing
+
+The frontend uses Jest and React Testing Library. Tests cover:
+- Components
+- Hooks
+- Utils
+- Integration tests
+
+Run frontend tests:
+```bash
+cd ui
+
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run tests in CI mode
+npm run test:ci
+```
+
+Coverage thresholds:
+- Branches: 80%
+- Functions: 80%
+- Lines: 80%
+- Statements: 80%
+
+### Test Organization
+
+#### Backend Tests
+- `src/**/*.spec.ts`: Unit tests alongside source files
+- `test/`: E2E tests
+- Mocks in `src/__mocks__/`
+
+#### Frontend Tests
+- `src/**/*.test.tsx`: Component tests
+- `src/**/*.test.ts`: Hook and utility tests
+- `src/__tests__/`: Integration tests
+- Mocks in `src/__mocks__/`
+
+### Testing Best Practices
+
+1. **Backend Testing**
+   - Mock external services and databases
+   - Test both success and error cases
+   - Validate request/response schemas
+   - Test edge cases and boundary conditions
+
+2. **Frontend Testing**
+   - Test user interactions
+   - Verify component rendering
+   - Test loading and error states
+   - Mock API calls and external services
+   - Test responsive behavior
+
+3. **General Guidelines**
+   - Write tests before fixing bugs
+   - Keep tests focused and isolated
+   - Use meaningful test descriptions
+   - Follow AAA pattern (Arrange, Act, Assert)
+   - Maintain test data fixtures
