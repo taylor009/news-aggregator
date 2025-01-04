@@ -3,10 +3,9 @@ import {
   Column,
   PrimaryGeneratedColumn,
   CreateDateColumn,
-  UpdateDateColumn,
 } from 'typeorm';
 
-@Entity()
+@Entity('newsletter_subscribers')
 export class NewsletterSubscriber {
   @PrimaryGeneratedColumn()
   id: number;
@@ -17,21 +16,25 @@ export class NewsletterSubscriber {
   @Column('simple-array')
   preferredTopics: string[];
 
-  @Column({ default: 'daily' })
+  @Column({
+    type: 'varchar',
+    default: 'daily',
+    enum: ['daily', 'weekly', 'monthly'],
+  })
   frequency: string;
-
-  @Column({ nullable: true })
-  preferredTime: string;
-
-  @Column({ default: true })
-  receiveBreakingNews: boolean;
 
   @Column({ default: true })
   isActive: boolean;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @Column({ type: 'time', nullable: true })
+  preferredTime: string;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @Column({ type: 'simple-array', default: '' })
+  preferredSources: string[];
+
+  @CreateDateColumn()
+  subscribedAt: Date;
+
+  @Column({ default: true })
+  receiveBreakingNews: boolean;
 }

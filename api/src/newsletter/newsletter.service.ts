@@ -1,47 +1,47 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NewsletterSubscriber } from './newsletter-subscriber.entity';
+
+interface SubscriptionData {
+  email: string;
+  preferredTopics: string[];
+  frequency: string;
+  preferredTime?: string;
+  receiveBreakingNews: boolean;
+}
 
 @Injectable()
 export class NewsletterService {
   constructor(
     @InjectRepository(NewsletterSubscriber)
-    private readonly subscriberRepository: Repository<NewsletterSubscriber>,
+    private subscriberRepository: Repository<NewsletterSubscriber>,
   ) {}
 
-  async subscribe(email: string, categories: string[] = []) {
-    try {
-      // Check if email already exists
-      const existingSubscriber = await this.subscriberRepository.findOne({
-        where: { email },
-      });
+  async subscribe(data: SubscriptionData) {
+    let subscriber = await this.subscriberRepository.findOne({
+      where: { email: data.email },
+    });
 
-      if (existingSubscriber) {
-        if (!existingSubscriber.isActive) {
-          // Reactivate subscription
-          existingSubscriber.isActive = true;
-          existingSubscriber.categories = categories;
-          await this.subscriberRepository.save(existingSubscriber);
-          return existingSubscriber;
-        }
-        throw new ConflictException('Email already subscribed');
-      }
-
+    if (subscriber) {
+      // Update existing subscriber
+      subscriber.preferredTopics = data.preferredTopics;
+      subscriber.frequency = data.frequency;
+      subscriber.preferredTime = data.preferredTime;
+      subscriber.receiveBreakingNews = data.receiveBreakingNews;
+      subscriber.isActive = true;
+    } else {
       // Create new subscriber
-      const subscriber = this.subscriberRepository.create({
-        email,
-        categories,
-        isActive: true,
+      subscriber = this.subscriberRepository.create({
+        email: data.email,
+        preferredTopics: data.preferredTopics,
+        frequency: data.frequency,
+        preferredTime: data.preferredTime,
+        receiveBreakingNews: data.receiveBreakingNews,
       });
-
-      return await this.subscriberRepository.save(subscriber);
-    } catch (error) {
-      if (error instanceof ConflictException) {
-        throw error;
-      }
-      throw new Error('Failed to subscribe to newsletter');
     }
+
+    return this.subscriberRepository.save(subscriber);
   }
 
   async unsubscribe(email: string) {
@@ -49,24 +49,39 @@ export class NewsletterService {
       where: { email },
     });
 
-    if (!subscriber) {
-      return;
+    if (subscriber) {
+      subscriber.isActive = false;
+      return this.subscriberRepository.save(subscriber);
     }
 
-    subscriber.isActive = false;
-    await this.subscriberRepository.save(subscriber);
+    return null;
   }
 
-  async updateCategories(email: string, categories: string[]) {
-    const subscriber = await this.subscriberRepository.findOne({
-      where: { email },
+  async getActiveSubscribers() {
+    return this.subscriberRepository.find({
+      where: { isActive: true },
+    });
+  }
+
+  async getSubscribersByFrequency(frequency: string) {
+    return this.subscriberRepository.find({
+      where: { frequency, isActive: true },
+    });
+  }
+
+  async getSubscribersByTopic(topic: string) {
+    const subscribers = await this.subscriberRepository.find({
+      where: { isActive: true },
     });
 
-    if (!subscriber) {
-      throw new Error('Subscriber not found');
-    }
+    return subscribers.filter((subscriber) =>
+      subscriber.preferredTopics.includes(topic),
+    );
+  }
 
-    subscriber.categories = categories;
-    return await this.subscriberRepository.save(subscriber);
+  async getBreakingNewsSubscribers() {
+    return this.subscriberRepository.find({
+      where: { receiveBreakingNews: true, isActive: true },
+    });
   }
 }

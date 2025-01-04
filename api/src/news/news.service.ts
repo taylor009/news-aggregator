@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ArticlesService } from '../articles/articles.service';
 import axios from 'axios';
@@ -7,168 +7,111 @@ import axios from 'axios';
 export class NewsService {
   private readonly logger = new Logger(NewsService.name);
   private readonly apiKey: string;
-  private readonly apiUrl = 'https://newsapi.org/v2';
-  private readonly categories = [
-    'business',
-    'entertainment',
-    'general',
-    'health',
-    'science',
-    'sports',
-    'technology',
-  ];
+  private readonly baseUrl = 'https://newsapi.org/v2';
 
   constructor(
-    private configService: ConfigService,
-    @Inject(forwardRef(() => ArticlesService))
-    private articlesService: ArticlesService,
+    private readonly configService: ConfigService,
+    private readonly articlesService: ArticlesService,
   ) {
     this.apiKey = this.configService.get<string>('NEWS_API_KEY');
     if (!this.apiKey) {
-      this.logger.error('NEWS_API_KEY is not set in environment variables');
+      this.logger.warn('NEWS_API_KEY is not set. News fetching will not work.');
     }
   }
 
-  async fetchAndStoreArticles() {
+  async fetchAndStoreArticles(category?: string) {
     try {
-      const response = await axios.get(`${this.apiUrl}/top-headlines`, {
-        params: {
-          apiKey: this.apiKey,
-          language: 'en',
-          pageSize: 100,
-        },
-      });
+      const url = `${this.baseUrl}/top-headlines`;
+      const params = {
+        apiKey: this.apiKey,
+        language: 'en',
+        pageSize: 100,
+        ...(category && { category }),
+      };
 
+      const response = await axios.get(url, { params });
       const articles = response.data.articles;
-      let stored = 0;
 
-      for (const article of articles) {
-        if (!article.title || !article.url) continue;
+      // Process and store articles in batches
+      const processedArticles = articles
+        .filter(
+          (article) =>
+            article.title && (article.content || article.description),
+        )
+        .map((article) => ({
+          title: article.title,
+          content:
+            article.content || article.description || 'No content available',
+          url: article.url,
+          imageUrl: article.urlToImage,
+          source: article.source?.name || 'Unknown Source',
+          author: article.author || 'Unknown Author',
+          categories: category ? [category.toLowerCase()] : ['general'],
+        }));
 
-        try {
-          await this.articlesService.create({
-            title: article.title,
-            content: article.description || article.content || '',
-            url: article.url,
-            imageUrl: article.urlToImage,
-            source: article.source.name,
-            author: article.author,
-            categories: this.inferCategories(
-              article.title,
-              article.description,
-            ),
-          });
-          stored++;
-        } catch (error) {
-          this.logger.warn(
-            `Failed to store article: ${article.title}`,
-            error.message,
-          );
-        }
+      if (processedArticles.length > 0) {
+        await this.articlesService.createMany(processedArticles);
+        this.logger.log(
+          `Successfully stored ${processedArticles.length} articles`,
+        );
+      } else {
+        this.logger.warn('No valid articles found to store');
       }
-
-      this.logger.log(
-        `Successfully fetched and stored ${stored} out of ${articles.length} articles`,
-      );
     } catch (error) {
-      this.logger.error('Error fetching articles:', error.message);
+      this.logger.error('Error fetching articles from NewsAPI:', error.message);
       throw error;
     }
   }
 
   async fetchArticlesByCategory(category: string) {
+    return this.fetchAndStoreArticles(category);
+  }
+
+  async fetchArticlesByTopic(topic: string) {
     try {
-      const response = await axios.get(`${this.apiUrl}/top-headlines`, {
-        params: {
-          apiKey: this.apiKey,
-          category,
-          language: 'en',
-          pageSize: 100,
-        },
-      });
+      const url = `${this.baseUrl}/everything`;
+      const params = {
+        apiKey: this.apiKey,
+        language: 'en',
+        pageSize: 100,
+        q: topic, // Use the topic as the search query
+        sortBy: 'publishedAt',
+      };
 
+      const response = await axios.get(url, { params });
       const articles = response.data.articles;
-      let stored = 0;
 
-      for (const article of articles) {
-        if (!article.title || !article.url) continue;
+      // Process and store articles in batches
+      const processedArticles = articles
+        .filter(
+          (article) =>
+            article.title && (article.content || article.description),
+        )
+        .map((article) => ({
+          title: article.title,
+          content:
+            article.content || article.description || 'No content available',
+          url: article.url,
+          imageUrl: article.urlToImage,
+          source: article.source?.name || 'Unknown Source',
+          author: article.author || 'Unknown Author',
+          categories: [topic.toLowerCase()], // Add the topic as a category
+        }));
 
-        try {
-          await this.articlesService.create({
-            title: article.title,
-            content: article.description || article.content || '',
-            url: article.url,
-            imageUrl: article.urlToImage,
-            source: article.source.name,
-            author: article.author,
-            categories: [
-              category,
-              ...this.inferCategories(article.title, article.description),
-            ],
-          });
-          stored++;
-        } catch (error) {
-          this.logger.warn(
-            `Failed to store article: ${article.title}`,
-            error.message,
-          );
-        }
+      if (processedArticles.length > 0) {
+        await this.articlesService.createMany(processedArticles);
+        this.logger.log(
+          `Successfully stored ${processedArticles.length} articles for topic: ${topic}`,
+        );
+      } else {
+        this.logger.warn(`No valid articles found for topic: ${topic}`);
       }
-
-      this.logger.log(
-        `Successfully fetched and stored ${stored} out of ${articles.length} articles for category: ${category}`,
-      );
     } catch (error) {
       this.logger.error(
-        `Error fetching articles for category ${category}:`,
+        `Error fetching articles for topic ${topic}:`,
         error.message,
       );
       throw error;
     }
-  }
-
-  private inferCategories(title: string, description: string = ''): string[] {
-    const text = `${title} ${description}`.toLowerCase();
-    const categories = new Set<string>();
-
-    // Map of keywords to categories
-    const categoryKeywords = {
-      technology: [
-        'tech',
-        'ai',
-        'robot',
-        'software',
-        'digital',
-        'cyber',
-        'computing',
-      ],
-      business: ['business', 'economy', 'market', 'stock', 'finance', 'trade'],
-      science: ['science', 'research', 'study', 'discovery', 'scientist'],
-      health: [
-        'health',
-        'medical',
-        'disease',
-        'treatment',
-        'doctor',
-        'patient',
-      ],
-      environment: [
-        'climate',
-        'environment',
-        'renewable',
-        'sustainable',
-        'green',
-      ],
-      sports: ['sport', 'game', 'player', 'team', 'tournament', 'championship'],
-    };
-
-    // Check for each category's keywords
-    for (const [category, keywords] of Object.entries(categoryKeywords)) {
-      if (keywords.some((keyword) => text.includes(keyword))) {
-        categories.add(category);
-      }
-    }
-
-    return Array.from(categories);
   }
 }

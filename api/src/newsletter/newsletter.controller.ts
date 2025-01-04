@@ -6,10 +6,17 @@ import {
   HttpStatus,
   Delete,
   Param,
-  Patch,
 } from '@nestjs/common';
 import { NewsletterService } from './newsletter.service';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+
+interface SubscriptionDto {
+  email: string;
+  preferredTopics: string[];
+  frequency: string;
+  preferredTime?: string;
+  receiveBreakingNews: boolean;
+}
 
 @ApiTags('newsletter')
 @Controller('newsletter')
@@ -24,8 +31,8 @@ export class NewsletterController {
     description: 'Successfully subscribed to newsletter',
   })
   @ApiResponse({ status: 409, description: 'Email already subscribed' })
-  async subscribe(@Body() body: { email: string; categories?: string[] }) {
-    return await this.newsletterService.subscribe(body.email, body.categories);
+  async subscribe(@Body() subscriptionData: SubscriptionDto) {
+    return this.newsletterService.subscribe(subscriptionData);
   }
 
   @Delete('unsubscribe/:email')
@@ -37,18 +44,5 @@ export class NewsletterController {
   })
   async unsubscribe(@Param('email') email: string) {
     await this.newsletterService.unsubscribe(email);
-  }
-
-  @Patch(':email/categories')
-  @ApiOperation({ summary: 'Update newsletter categories' })
-  @ApiResponse({ status: 200, description: 'Successfully updated categories' })
-  async updateCategories(
-    @Param('email') email: string,
-    @Body() body: { categories: string[] },
-  ) {
-    return await this.newsletterService.updateCategories(
-      email,
-      body.categories,
-    );
   }
 }

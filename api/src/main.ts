@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Logger } from '@nestjs/common';
+import { ClassSerializerInterceptor } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -14,6 +16,9 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Accept'],
     credentials: true,
   });
+
+  // Enable class-transformer globally
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
   // Swagger setup
   const config = new DocumentBuilder()
